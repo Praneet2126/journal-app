@@ -5,15 +5,17 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.journalApp.entity.User;
+import com.example.journalApp.repository.UserRepository;
 import com.example.journalApp.service.UserService;
 
 @RestController
@@ -22,26 +24,31 @@ public class UserController {
 
     @Autowired
     private UserService userService;
-    
+
+    @Autowired
+    private UserRepository userRepository;
+
     @GetMapping
     public List<User> getAllUsers() {
         return userService.getAll();
     }
 
-    @PostMapping
-    public void addNewUser(@RequestBody User user) {
-        userService.saveEntry(user);
+    @PutMapping
+    public ResponseEntity<?> updateUser(@RequestBody User user) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userName = authentication.getName();
+
+        User userInDb = userService.findByUserName(userName);
+        userInDb.setUserName(user.getUserName());
+        userInDb.setPassword(user.getPassword());
+        userService.saveEntry(userInDb);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    @PutMapping("/{userName}")
-    public ResponseEntity<?> updateUser(@RequestBody User user, @PathVariable String userName) {
-        User userInDb = userService.findByUserName(userName);
-        if(userInDb != null) {
-            userInDb.setUserName(user.getUserName());
-            userInDb.setPassword(user.getPassword());
-            userService.saveEntry(userInDb);
-        }
-
+    @DeleteMapping
+    public ResponseEntity<?> deleteByUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        userRepository.deleteByUserName(authentication.getName());
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 }
